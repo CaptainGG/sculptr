@@ -25,7 +25,7 @@ export const DEFAULT_SVG = STAR_SVG;
 
 export const DEFAULT_SETTINGS = {
   // Input
-  activePanel: 'draw' as 'draw' | 'text' | 'code' | null,
+  activePanel: 'draw' as 'draw' | 'text' | 'code' | 'upload' | null,
   svgString: '' as string,
   pixelGrid: Array.from({ length: 24 }, () => Array(24).fill(false)) as boolean[][],
   textInput: '',

@@ -1,5 +1,7 @@
 # Sculptr
 
+[![Download](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/CaptainGG/sculptr/releases/latest/download/Sculptr.Setup.0.1.0.exe)
+
 **Turn any SVG into an interactive 3D sculpture.**
 
 Sculptr is a browser-based 3D design tool that extrudes SVG paths into fully interactive 3D objects with real-time controls for materials, lighting, animations, and more.
@@ -8,7 +10,8 @@ Sculptr is a browser-based 3D design tool that extrudes SVG paths into fully int
 
 - **Draw mode** — pixel canvas (24×24) draws directly to 3D
 - **Text mode** — type text, choose a font, render in 3D
-- **SVG code** — paste or upload any SVG file
+- **SVG code** — paste any SVG markup directly
+- **Upload SVG** — drag & drop or browse to load any `.svg` file
 - **Materials** — default, plastic, metal, glass, chrome, gold, clay, holographic & more
 - **Animations** — float, spin, pulse, wobble, spinFloat, swing
 - **Lighting** — full control over position, intensity, shadows

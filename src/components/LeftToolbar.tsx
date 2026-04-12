@@ -44,6 +44,7 @@ const TOOLS = [
   { id: 'draw' as const, icon: PencilIcon, title: 'Draw' },
   { id: 'text' as const, icon: TextIcon, title: 'Text' },
   { id: 'code' as const, icon: CodeIcon, title: 'SVG Code' },
+  { id: 'upload' as const, icon: UploadIcon, title: 'Upload SVG' },
 ] as const;
 
 export function LeftToolbar() {

@@ -7,6 +7,7 @@ import { LeftToolbar } from '@/components/LeftToolbar';
 import { DrawPanel } from '@/components/DrawPanel';
 import { TextPanel } from '@/components/TextPanel';
 import { CodePanel } from '@/components/CodePanel';
+import { UploadPanel } from '@/components/UploadPanel';
 import { SettingsDrawer } from '@/components/SettingsDrawer';
 import { TopButtons } from '@/components/TopButtons';
 import { ExportBar } from '@/components/ExportBar';
@@ -19,6 +20,7 @@ function ActivePanel() {
   if (state.activePanel === 'draw') return <DrawPanel />;
   if (state.activePanel === 'text') return <TextPanel />;
   if (state.activePanel === 'code') return <CodePanel />;
+  if (state.activePanel === 'upload') return <UploadPanel />;
   return null;
 }
 
