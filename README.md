@@ -1,6 +1,5 @@
 # Sculptr
 
-[![Download](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/CaptainGG/sculptr/releases/latest/download/Sculptr.Setup.0.1.0.exe)
 
 **Turn any SVG into an interactive 3D sculpture.**
 
