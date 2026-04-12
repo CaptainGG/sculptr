@@ -1,6 +1,8 @@
 # Sculptr
 
 
+![Sculptr Demo](public/sculptr-demo.gif)
+
 **Turn any SVG into an interactive 3D sculpture.**
 
 Sculptr is a browser-based 3D design tool that extrudes SVG paths into fully interactive 3D objects with real-time controls for materials, lighting, animations, and more.
