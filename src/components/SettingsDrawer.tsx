@@ -3,17 +3,29 @@
 import { useAppState } from '@/hooks/useAppState';
 import { AccordionSection } from './AccordionSection';
 import { ColorPicker } from './ColorPicker';
-import { ANIMATIONS, MATERIALS } from '@/lib/defaults';
+import {
+  ANIMATIONS,
+  MATERIALS,
+  MATERIAL_DEFAULTS,
+  type AnimationType,
+  type MaterialPreset,
+} from '@/lib/defaults';
 
 function Slider({
-  label, value, min, max, step, format, onChange,
+  label, value, min, max, step, format, disabled = false, onChange,
 }: {
-  label: string; value: number; min: number; max: number; step: number;
-  format?: (v: number) => string; onChange: (v: number) => void;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format?: (v: number) => string;
+  disabled?: boolean;
+  onChange: (v: number) => void;
 }) {
   const display = format ? format(value) : String(value);
   return (
-    <div className="mb-3">
+    <div className={`mb-3 ${disabled ? 'opacity-45' : ''}`}>
       <div className="flex justify-between text-xs text-white/50 mb-1">
         <span>{label}</span>
         <span className="text-white/70">{display}</span>
@@ -24,21 +36,30 @@ function Slider({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1 rounded-full accent-accent cursor-pointer"
+        className={`w-full h-1 rounded-full accent-accent ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         style={{ accentColor: '#4f46e5' }}
       />
     </div>
   );
 }
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label, value, disabled = false, onChange,
+}: {
+  label: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
-    <div className="flex items-center justify-between mb-3">
+    <div className={`flex items-center justify-between mb-3 ${disabled ? 'opacity-45' : ''}`}>
       <span className="text-xs text-white/60">{label}</span>
       <button
         onClick={() => onChange(!value)}
-        className={`w-9 h-5 rounded-full transition-colors relative ${value ? 'bg-accent' : 'bg-white/20'}`}
+        disabled={disabled}
+        className={`w-9 h-5 rounded-full transition-colors relative ${value ? 'bg-accent' : 'bg-white/20'} ${disabled ? 'cursor-not-allowed' : ''}`}
       >
         <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${value ? 'left-4' : 'left-0.5'}`} />
       </button>
@@ -48,13 +69,16 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
 
 export function SettingsDrawer() {
   const { state, dispatch } = useAppState();
+  const materialDefaults = MATERIAL_DEFAULTS[state.material];
+  const metalness = state.metalness ?? materialDefaults.metalness;
+  const roughness = state.roughness ?? materialDefaults.roughness;
+  const opacity = state.opacity ?? materialDefaults.opacity;
 
   if (!state.settingsOpen) return null;
 
   return (
     <div className="fixed right-0 top-0 h-full z-40 flex flex-col shadow-2xl"
       style={{ width: 275, background: '#1a1a2e' }}>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
         <span className="text-white/50 text-xs font-medium tracking-widest uppercase">Settings</span>
         <button
@@ -67,9 +91,7 @@ export function SettingsDrawer() {
         </button>
       </div>
 
-      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
-        {/* Object */}
         <AccordionSection title="Object" defaultOpen={true}>
           <div className="mb-4">
             <ColorPicker
@@ -98,7 +120,6 @@ export function SettingsDrawer() {
           </button>
         </AccordionSection>
 
-        {/* Background */}
         <AccordionSection title="Background">
           <ColorPicker
             value={state.backgroundColor}
@@ -106,35 +127,29 @@ export function SettingsDrawer() {
           />
         </AccordionSection>
 
-        {/* Material */}
         <AccordionSection title="Material">
           <select
             value={state.material}
-            onChange={(e) => dispatch({ type: 'SET_MATERIAL', material: e.target.value })}
+            onChange={(e) => dispatch({ type: 'SET_MATERIAL', material: e.target.value as MaterialPreset })}
             className="w-full bg-black/30 text-white rounded-lg px-3 py-2 text-xs outline-none border border-white/10 focus:border-white/30 transition-colors cursor-pointer mb-3 capitalize"
           >
             {MATERIALS.map((m) => (
               <option key={m} value={m} className="capitalize">{m.charAt(0).toUpperCase() + m.slice(1)}</option>
             ))}
           </select>
-          {state.material !== 'default' && (
-            <div>
-              <Slider label="Metalness" value={state.metalness ?? 0.15} min={0} max={1} step={0.01}
-                format={(v) => v.toFixed(2)}
-                onChange={(v) => dispatch({ type: 'SET_METALNESS', metalness: v })} />
-              <Slider label="Roughness" value={state.roughness ?? 0.35} min={0} max={1} step={0.01}
-                format={(v) => v.toFixed(2)}
-                onChange={(v) => dispatch({ type: 'SET_ROUGHNESS', roughness: v })} />
-              <Slider label="Opacity" value={state.opacity ?? 1} min={0} max={1} step={0.01}
-                format={(v) => v.toFixed(2)}
-                onChange={(v) => dispatch({ type: 'SET_OPACITY', opacity: v })} />
-              <Toggle label="Wireframe" value={state.wireframe}
-                onChange={(v) => dispatch({ type: 'SET_WIREFRAME', wireframe: v })} />
-            </div>
-          )}
+          <Slider label="Metalness" value={metalness} min={0} max={1} step={0.01}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => dispatch({ type: 'SET_METALNESS', metalness: v })} />
+          <Slider label="Roughness" value={roughness} min={0} max={1} step={0.01}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => dispatch({ type: 'SET_ROUGHNESS', roughness: v })} />
+          <Slider label="Opacity" value={opacity} min={0} max={1} step={0.01}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => dispatch({ type: 'SET_OPACITY', opacity: v })} />
+          <Toggle label="Wireframe" value={state.wireframe}
+            onChange={(v) => dispatch({ type: 'SET_WIREFRAME', wireframe: v })} />
         </AccordionSection>
 
-        {/* Texture */}
         <AccordionSection title="Texture">
           <div className="mb-3">
             <label className="text-xs text-white/50 block mb-1">Image URL</label>
@@ -152,17 +167,22 @@ export function SettingsDrawer() {
                 format={(v) => v.toFixed(1)}
                 onChange={(v) => dispatch({ type: 'SET_TEXTURE_REPEAT', repeat: v })} />
               <Slider label="Rotation" value={state.textureRotation} min={-Math.PI} max={Math.PI} step={0.01}
-                format={(v) => `${Math.round(v * 180 / Math.PI)}°`}
+                format={(v) => `${Math.round(v * 180 / Math.PI)} deg`}
                 onChange={(v) => dispatch({ type: 'SET_TEXTURE_ROTATION', rotation: v })} />
+              <Slider label="Offset X" value={state.textureOffset[0]} min={-1} max={1} step={0.01}
+                format={(v) => v.toFixed(2)}
+                onChange={(v) => dispatch({ type: 'SET_TEXTURE_OFFSET', offset: [v, state.textureOffset[1]] })} />
+              <Slider label="Offset Y" value={state.textureOffset[1]} min={-1} max={1} step={0.01}
+                format={(v) => v.toFixed(2)}
+                onChange={(v) => dispatch({ type: 'SET_TEXTURE_OFFSET', offset: [state.textureOffset[0], v] })} />
             </>
           )}
         </AccordionSection>
 
-        {/* Animation */}
         <AccordionSection title="Animation">
           <select
             value={state.animation}
-            onChange={(e) => dispatch({ type: 'SET_ANIMATION', animation: e.target.value })}
+            onChange={(e) => dispatch({ type: 'SET_ANIMATION', animation: e.target.value as AnimationType })}
             className="w-full bg-black/30 text-white rounded-lg px-3 py-2 text-xs outline-none border border-white/10 focus:border-white/30 transition-colors cursor-pointer mb-3 capitalize"
           >
             {ANIMATIONS.map((a) => (
@@ -176,29 +196,33 @@ export function SettingsDrawer() {
             onChange={(v) => dispatch({ type: 'SET_ANIMATE_REVERSE', reverse: v })} />
         </AccordionSection>
 
-        {/* Interaction */}
         <AccordionSection title="Interaction">
           <Toggle label="Interactive" value={state.interactive}
             onChange={(v) => dispatch({ type: 'SET_INTERACTIVE', interactive: v })} />
           <Toggle label="Cursor Orbit" value={state.cursorOrbit}
+            disabled={!state.interactive}
             onChange={(v) => dispatch({ type: 'SET_CURSOR_ORBIT', cursorOrbit: v })} />
           <Slider label="Orbit Strength" value={state.orbitStrength} min={0} max={0.5} step={0.01}
             format={(v) => v.toFixed(2)}
+            disabled={!state.interactive}
             onChange={(v) => dispatch({ type: 'SET_ORBIT_STRENGTH', strength: v })} />
           <Toggle label="Draggable" value={state.draggable}
+            disabled={!state.interactive}
             onChange={(v) => dispatch({ type: 'SET_DRAGGABLE', draggable: v })} />
           <Toggle label="Scroll Zoom" value={state.scrollZoom}
+            disabled={!state.interactive}
             onChange={(v) => dispatch({ type: 'SET_SCROLL_ZOOM', scrollZoom: v })} />
           <Toggle label="Reset on Idle" value={state.resetOnIdle}
+            disabled={!state.interactive}
             onChange={(v) => dispatch({ type: 'SET_RESET_ON_IDLE', resetOnIdle: v })} />
           {state.resetOnIdle && (
             <Slider label="Reset Delay (s)" value={state.resetDelay} min={0.5} max={10} step={0.5}
               format={(v) => `${v}s`}
+              disabled={!state.interactive}
               onChange={(v) => dispatch({ type: 'SET_RESET_DELAY', delay: v })} />
           )}
         </AccordionSection>
 
-        {/* Lighting */}
         <AccordionSection title="Lighting">
           <Slider label="Light Intensity" value={state.lightIntensity} min={0} max={3} step={0.1}
             format={(v) => v.toFixed(1)}

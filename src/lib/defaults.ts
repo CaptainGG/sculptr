@@ -18,6 +18,25 @@ export const FONTS = [
 
 export const ANIMATIONS = ['none', 'float', 'spin', 'pulse', 'wobble', 'spinFloat', 'swing'] as const;
 export const MATERIALS = ['default', 'plastic', 'metal', 'glass', 'rubber', 'chrome', 'gold', 'clay', 'emissive', 'holographic'] as const;
+export type AnimationType = typeof ANIMATIONS[number];
+export type MaterialPreset = typeof MATERIALS[number];
+
+export const MATERIAL_DEFAULTS: Record<MaterialPreset, {
+  metalness: number;
+  roughness: number;
+  opacity: number;
+}> = {
+  default: { metalness: 0.15, roughness: 0.35, opacity: 1 },
+  plastic: { metalness: 0, roughness: 0.3, opacity: 1 },
+  metal: { metalness: 0.9, roughness: 0.2, opacity: 1 },
+  glass: { metalness: 0.1, roughness: 0.05, opacity: 0.35 },
+  rubber: { metalness: 0, roughness: 0.9, opacity: 1 },
+  chrome: { metalness: 1, roughness: 0.05, opacity: 1 },
+  gold: { metalness: 1, roughness: 0.25, opacity: 1 },
+  clay: { metalness: 0, roughness: 1, opacity: 1 },
+  emissive: { metalness: 0, roughness: 0.5, opacity: 1 },
+  holographic: { metalness: 0.8, roughness: 0.1, opacity: 0.7 },
+};
 
 export const STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="black"/></svg>`;
 
@@ -41,7 +60,7 @@ export const DEFAULT_SETTINGS = {
   backgroundColor: '#0f172a',
 
   // Material
-  material: 'default' as string,
+  material: 'default' as MaterialPreset,
   metalness: undefined as number | undefined,
   roughness: undefined as number | undefined,
   opacity: undefined as number | undefined,
@@ -54,7 +73,7 @@ export const DEFAULT_SETTINGS = {
   textureOffset: [0, 0] as [number, number],
 
   // Animation
-  animation: 'float',
+  animation: 'float' as AnimationType,
   animationSpeed: 1.0,
   animateReverse: false,
 

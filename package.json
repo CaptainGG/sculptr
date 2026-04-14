@@ -1,13 +1,16 @@
 {
-  "name": "3dsvg-clone",
+  "name": "sculptr",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm lint && pnpm typecheck && pnpm build",
     "electron:dev": "electron .",
     "build:electron": "cross-env BUILD_TARGET=electron next build && electron-builder",
     "dist": "pnpm build:electron"
@@ -32,7 +35,7 @@
     }
   },
   "dependencies": {
-    "3dsvg": "latest",
+    "3dsvg": "0.2.1",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.0.0",
     "next": "15.3.0",
@@ -46,6 +49,7 @@
     "@types/opentype.js": "^1.3.9",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.183.1",
     "autoprefixer": "^10.0.1",
     "cross-env": "^10.1.0",
     "electron": "^41.2.0",
@@ -53,6 +57,7 @@
     "eslint": "^8",
     "eslint-config-next": "15.3.0",
     "postcss": "^8",
+    "puppeteer-core": "^24.40.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

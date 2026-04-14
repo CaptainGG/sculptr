@@ -17,7 +17,7 @@ type Action =
   | { type: 'SET_SMOOTHNESS'; smoothness: number }
   | { type: 'SET_ZOOM'; zoom: number }
   | { type: 'SET_BG_COLOR'; color: string }
-  | { type: 'SET_MATERIAL'; material: string }
+  | { type: 'SET_MATERIAL'; material: AppState['material'] }
   | { type: 'SET_METALNESS'; metalness: number | undefined }
   | { type: 'SET_ROUGHNESS'; roughness: number | undefined }
   | { type: 'SET_OPACITY'; opacity: number | undefined }
@@ -26,7 +26,7 @@ type Action =
   | { type: 'SET_TEXTURE_REPEAT'; repeat: number }
   | { type: 'SET_TEXTURE_ROTATION'; rotation: number }
   | { type: 'SET_TEXTURE_OFFSET'; offset: [number, number] }
-  | { type: 'SET_ANIMATION'; animation: string }
+  | { type: 'SET_ANIMATION'; animation: AppState['animation'] }
   | { type: 'SET_ANIMATION_SPEED'; speed: number }
   | { type: 'SET_ANIMATE_REVERSE'; reverse: boolean }
   | { type: 'SET_LIGHT_POSITION'; position: [number, number, number] }
@@ -84,7 +84,14 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_BG_COLOR':
       return { ...state, backgroundColor: action.color };
     case 'SET_MATERIAL':
-      return { ...state, material: action.material };
+      return {
+        ...state,
+        material: action.material,
+        metalness: undefined,
+        roughness: undefined,
+        opacity: undefined,
+        wireframe: false,
+      };
     case 'SET_METALNESS':
       return { ...state, metalness: action.metalness };
     case 'SET_ROUGHNESS':
