@@ -4,9 +4,6 @@ const nextConfig: NextConfig = {
   transpilePackages: ["3dsvg"],
   output: process.env.BUILD_TARGET === "electron" ? "export" : undefined,
   trailingSlash: true,
-  experimental: {
-    esmExternals: "loose",
-  },
   webpack: (config) => {
     // Allow webpack to resolve ESM-only packages (like 3dsvg) that only export "import" condition
     if (Array.isArray(config.resolve.conditionNames)) {

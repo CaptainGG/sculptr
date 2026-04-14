@@ -8,6 +8,9 @@ out/
 # Electron build output
 dist-electron/
 
+# Demo capture output
+scripts/frames/
+
 # Environment
 .env
 .env.local

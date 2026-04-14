@@ -9,15 +9,25 @@ import {
   type RefObject,
 } from 'react';
 import { useAppState } from '@/hooks/useAppState';
-import { DEFAULT_SVG } from '@/lib/defaults';
+import { DEFAULT_SVG, type AnimationType, type MaterialPreset } from '@/lib/defaults';
 
-type MaterialPreset = 'default' | 'plastic' | 'metal' | 'glass' | 'rubber' | 'chrome' | 'gold' | 'clay' | 'emissive' | 'holographic';
+type CanvasWithCaptureStream = HTMLCanvasElement & {
+  captureStream?: (fps?: number) => MediaStream;
+};
 
 const SVG3D = dynamic(
   () => import('3dsvg').then((m) => ({ default: m.SVG3D })),
   {
     ssr: false,
     loading: () => <div className="w-full h-full" style={{ background: '#6961ff' }} />,
+  }
+);
+
+const SceneBackgroundSync = dynamic(
+  () => import('./SceneBackgroundSync').then((m) => ({ default: m.SceneBackgroundSync })),
+  {
+    ssr: false,
+    loading: () => null,
   }
 );
 
@@ -64,30 +74,73 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
   const startRecording = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const stream = (canvas as HTMLCanvasElement & { captureStream: (fps: number) => MediaStream }).captureStream(60);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType });
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') return;
+    const captureStream = (canvas as CanvasWithCaptureStream).captureStream;
+    if (typeof captureStream !== 'function' || typeof MediaRecorder === 'undefined') {
+      console.error('Canvas recording is not supported in this browser.');
+      return;
+    }
+
+    const stream = captureStream.call(canvas, 60);
+    const mimeType = ['video/webm;codecs=vp9', 'video/webm'].find((type) =>
+      MediaRecorder.isTypeSupported(type)
+    );
+    let recorder: MediaRecorder;
+    try {
+      recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+    } catch (event) {
+      console.error('Could not start video recording:', event);
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     const chunks: Blob[] = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
+      recorderRef.current = null;
+      dispatch({ type: 'SET_RECORDING', recording: false });
+      stream.getTracks().forEach((track) => track.stop());
+      if (chunks.length === 0) return;
+
+      const blob = new Blob(chunks, { type: mimeType ?? 'video/webm' });
+      if (blob.size === 0) return;
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'sculptr-render.webm';
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     };
-    recorder.start();
+    recorder.onerror = (event) => {
+      console.error('Could not record video:', event);
+      recorderRef.current = null;
+      dispatch({ type: 'SET_RECORDING', recording: false });
+      stream.getTracks().forEach((track) => track.stop());
+    };
+    try {
+      recorder.start();
+    } catch (event) {
+      console.error('Could not start video recording:', event);
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     recorderRef.current = recorder;
     dispatch({ type: 'SET_RECORDING', recording: true });
   }, [dispatch]);
 
   const stopRecording = useCallback(() => {
-    recorderRef.current?.stop();
-    recorderRef.current = null;
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    if (recorder.state === 'inactive') {
+      recorderRef.current = null;
+      dispatch({ type: 'SET_RECORDING', recording: false });
+      return;
+    }
+    recorder.stop();
     dispatch({ type: 'SET_RECORDING', recording: false });
   }, [dispatch]);
 
@@ -113,7 +166,7 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
   const svgContent = svgString || DEFAULT_SVG;
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0" style={{ background: backgroundColor }}>
       <SVG3D
         {...(isTextMode
           ? { text: textInput, font: selectedFont }
@@ -133,7 +186,7 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
         textureRepeat={textureRepeat}
         textureRotation={textureRotation}
         textureOffset={textureOffset}
-        animate={animation as 'none' | 'spin' | 'float' | 'pulse' | 'wobble' | 'spinFloat' | 'swing'}
+        animate={animation as AnimationType}
         animateSpeed={animationSpeed}
         animateReverse={animateReverse}
         lightPosition={lightPosition}
@@ -154,7 +207,9 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
         onLoadingChange={(loading, progress) =>
           dispatch({ type: 'SET_LOADING', loading, progress })
         }
-      />
+      >
+        <SceneBackgroundSync color={backgroundColor} />
+      </SVG3D>
     </div>
   );
 });
