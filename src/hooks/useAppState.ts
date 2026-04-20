@@ -1,8 +1,12 @@
 'use client';
 
-import { createContext, useContext, useReducer, type ReactNode, createElement } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode, createElement } from 'react';
 import { DEFAULT_SETTINGS, type AppState } from '@/lib/defaults';
 import { svgFromPixels, createEmptyGrid, createHeartGrid } from '@/lib/svgFromPixels';
+
+// --- Grid history for undo/redo ---
+type GridSnapshot = { pixelGrid: boolean[][]; svgString: string };
+const MAX_HISTORY = 50;
 
 type Action =
   | { type: 'SET_ACTIVE_PANEL'; panel: AppState['activePanel'] }
@@ -48,129 +52,264 @@ type Action =
   | { type: 'CLOSE_EMBED_MODAL' }
   | { type: 'TOGGLE_FEEDBACK' }
   | { type: 'SET_LOADING'; loading: boolean; progress: number }
-  | { type: 'RESET_POSITION' };
+  | { type: 'RESET_POSITION' }
+  | { type: 'UNDO' }
+  | { type: 'REDO' }
+  | { type: 'COMMIT_GRID_SNAPSHOT' }
+  | { type: 'HYDRATE'; state: Partial<AppState> };
 
-function reducer(state: AppState, action: Action): AppState {
+type StateWithHistory = {
+  app: AppState;
+  past: GridSnapshot[];
+  future: GridSnapshot[];
+};
+
+function pushSnapshot(past: GridSnapshot[], state: AppState): GridSnapshot[] {
+  const snapshot = { pixelGrid: state.pixelGrid, svgString: state.svgString };
+  const next = [...past, snapshot];
+  return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+}
+
+function reducer(state: StateWithHistory, action: Action): StateWithHistory {
+  const { app } = state;
+
   switch (action.type) {
     case 'SET_ACTIVE_PANEL':
-      return { ...state, activePanel: action.panel === state.activePanel ? null : action.panel };
+      return { ...state, app: { ...app, activePanel: action.panel === app.activePanel ? null : action.panel } };
     case 'SET_SVG':
-      return { ...state, svgString: action.svg };
+      return { ...state, app: { ...app, svgString: action.svg } };
     case 'SET_PIXEL': {
-      const grid = state.pixelGrid.map((r, ri) =>
+      const grid = app.pixelGrid.map((r, ri) =>
         ri === action.row ? r.map((c, ci) => (ci === action.col ? action.value : c)) : r
       );
-      return { ...state, pixelGrid: grid, svgString: svgFromPixels(grid) };
+      return { ...state, app: { ...app, pixelGrid: grid, svgString: svgFromPixels(grid) } };
+    }
+    case 'COMMIT_GRID_SNAPSHOT': {
+      // Called on mouseUp/touchEnd — commits the current grid to history
+      return { ...state, past: pushSnapshot(state.past, app), future: [] };
     }
     case 'CLEAR_GRID': {
       const grid = createEmptyGrid();
-      return { ...state, pixelGrid: grid, svgString: '' };
-    }
-    case 'SET_GRID': {
-      return { ...state, pixelGrid: action.grid, svgString: svgFromPixels(action.grid) };
-    }
-    case 'SET_TEXT_INPUT':
-      return { ...state, textInput: action.text };
-    case 'SET_FONT':
-      return { ...state, selectedFont: action.font };
-    case 'SET_OBJECT_COLOR':
-      return { ...state, objectColor: action.color };
-    case 'SET_DEPTH':
-      return { ...state, depth: action.depth };
-    case 'SET_SMOOTHNESS':
-      return { ...state, smoothness: action.smoothness };
-    case 'SET_ZOOM':
-      return { ...state, zoom: action.zoom };
-    case 'SET_BG_COLOR':
-      return { ...state, backgroundColor: action.color };
-    case 'SET_MATERIAL':
       return {
         ...state,
-        material: action.material,
-        metalness: undefined,
-        roughness: undefined,
-        opacity: undefined,
-        wireframe: false,
+        past: pushSnapshot(state.past, app),
+        future: [],
+        app: { ...app, pixelGrid: grid, svgString: '' },
       };
+    }
+    case 'SET_GRID': {
+      return {
+        ...state,
+        past: pushSnapshot(state.past, app),
+        future: [],
+        app: { ...app, pixelGrid: action.grid, svgString: svgFromPixels(action.grid) },
+      };
+    }
+    case 'UNDO': {
+      if (state.past.length === 0) return state;
+      const prev = state.past[state.past.length - 1];
+      const currentSnapshot: GridSnapshot = { pixelGrid: app.pixelGrid, svgString: app.svgString };
+      return {
+        ...state,
+        past: state.past.slice(0, -1),
+        future: [...state.future, currentSnapshot],
+        app: { ...app, pixelGrid: prev.pixelGrid, svgString: prev.svgString },
+      };
+    }
+    case 'REDO': {
+      if (state.future.length === 0) return state;
+      const next = state.future[state.future.length - 1];
+      const currentSnapshot: GridSnapshot = { pixelGrid: app.pixelGrid, svgString: app.svgString };
+      return {
+        ...state,
+        past: [...state.past, currentSnapshot],
+        future: state.future.slice(0, -1),
+        app: { ...app, pixelGrid: next.pixelGrid, svgString: next.svgString },
+      };
+    }
+    case 'HYDRATE':
+      return { ...state, app: { ...app, ...action.state } };
+    case 'SET_TEXT_INPUT':
+      return { ...state, app: { ...app, textInput: action.text } };
+    case 'SET_FONT':
+      return { ...state, app: { ...app, selectedFont: action.font } };
+    case 'SET_OBJECT_COLOR':
+      return { ...state, app: { ...app, objectColor: action.color } };
+    case 'SET_DEPTH':
+      return { ...state, app: { ...app, depth: action.depth } };
+    case 'SET_SMOOTHNESS':
+      return { ...state, app: { ...app, smoothness: action.smoothness } };
+    case 'SET_ZOOM':
+      return { ...state, app: { ...app, zoom: action.zoom } };
+    case 'SET_BG_COLOR':
+      return { ...state, app: { ...app, backgroundColor: action.color } };
+    case 'SET_MATERIAL':
+      return { ...state, app: { ...app, material: action.material, metalness: undefined, roughness: undefined, opacity: undefined, wireframe: false } };
     case 'SET_METALNESS':
-      return { ...state, metalness: action.metalness };
+      return { ...state, app: { ...app, metalness: action.metalness } };
     case 'SET_ROUGHNESS':
-      return { ...state, roughness: action.roughness };
+      return { ...state, app: { ...app, roughness: action.roughness } };
     case 'SET_OPACITY':
-      return { ...state, opacity: action.opacity };
+      return { ...state, app: { ...app, opacity: action.opacity } };
     case 'SET_WIREFRAME':
-      return { ...state, wireframe: action.wireframe };
+      return { ...state, app: { ...app, wireframe: action.wireframe } };
     case 'SET_TEXTURE':
-      return { ...state, texture: action.texture };
+      return { ...state, app: { ...app, texture: action.texture } };
     case 'SET_TEXTURE_REPEAT':
-      return { ...state, textureRepeat: action.repeat };
+      return { ...state, app: { ...app, textureRepeat: action.repeat } };
     case 'SET_TEXTURE_ROTATION':
-      return { ...state, textureRotation: action.rotation };
+      return { ...state, app: { ...app, textureRotation: action.rotation } };
     case 'SET_TEXTURE_OFFSET':
-      return { ...state, textureOffset: action.offset };
+      return { ...state, app: { ...app, textureOffset: action.offset } };
     case 'SET_ANIMATION':
-      return { ...state, animation: action.animation };
+      return { ...state, app: { ...app, animation: action.animation } };
     case 'SET_ANIMATION_SPEED':
-      return { ...state, animationSpeed: action.speed };
+      return { ...state, app: { ...app, animationSpeed: action.speed } };
     case 'SET_ANIMATE_REVERSE':
-      return { ...state, animateReverse: action.reverse };
+      return { ...state, app: { ...app, animateReverse: action.reverse } };
     case 'SET_LIGHT_POSITION':
-      return { ...state, lightPosition: action.position };
+      return { ...state, app: { ...app, lightPosition: action.position } };
     case 'SET_LIGHT_INTENSITY':
-      return { ...state, lightIntensity: action.intensity };
+      return { ...state, app: { ...app, lightIntensity: action.intensity } };
     case 'SET_AMBIENT_INTENSITY':
-      return { ...state, ambientIntensity: action.intensity };
+      return { ...state, app: { ...app, ambientIntensity: action.intensity } };
     case 'SET_SHADOW':
-      return { ...state, shadow: action.shadow };
+      return { ...state, app: { ...app, shadow: action.shadow } };
     case 'SET_INTERACTIVE':
-      return { ...state, interactive: action.interactive };
+      return { ...state, app: { ...app, interactive: action.interactive } };
     case 'SET_CURSOR_ORBIT':
-      return { ...state, cursorOrbit: action.cursorOrbit };
+      return { ...state, app: { ...app, cursorOrbit: action.cursorOrbit } };
     case 'SET_ORBIT_STRENGTH':
-      return { ...state, orbitStrength: action.strength };
+      return { ...state, app: { ...app, orbitStrength: action.strength } };
     case 'SET_DRAGGABLE':
-      return { ...state, draggable: action.draggable };
+      return { ...state, app: { ...app, draggable: action.draggable } };
     case 'SET_SCROLL_ZOOM':
-      return { ...state, scrollZoom: action.scrollZoom };
+      return { ...state, app: { ...app, scrollZoom: action.scrollZoom } };
     case 'SET_RESET_ON_IDLE':
-      return { ...state, resetOnIdle: action.resetOnIdle };
+      return { ...state, app: { ...app, resetOnIdle: action.resetOnIdle } };
     case 'SET_RESET_DELAY':
-      return { ...state, resetDelay: action.delay };
+      return { ...state, app: { ...app, resetDelay: action.delay } };
     case 'TOGGLE_SETTINGS':
-      return { ...state, settingsOpen: !state.settingsOpen };
+      return { ...state, app: { ...app, settingsOpen: !app.settingsOpen } };
     case 'CLOSE_SETTINGS':
-      return { ...state, settingsOpen: false };
+      return { ...state, app: { ...app, settingsOpen: false } };
     case 'SET_EXPORT_MODE':
-      return { ...state, exportMode: action.mode };
+      return { ...state, app: { ...app, exportMode: action.mode } };
     case 'SET_RECORDING':
-      return { ...state, isRecording: action.recording };
+      return { ...state, app: { ...app, isRecording: action.recording } };
     case 'TOGGLE_EMBED_MODAL':
-      return { ...state, embedModalOpen: !state.embedModalOpen };
+      return { ...state, app: { ...app, embedModalOpen: !app.embedModalOpen } };
     case 'CLOSE_EMBED_MODAL':
-      return { ...state, embedModalOpen: false };
+      return { ...state, app: { ...app, embedModalOpen: false } };
     case 'TOGGLE_FEEDBACK':
-      return { ...state, feedbackOpen: !state.feedbackOpen };
+      return { ...state, app: { ...app, feedbackOpen: !app.feedbackOpen } };
     case 'SET_LOADING':
-      return { ...state, isLoading: action.loading, loadingProgress: action.progress };
+      return { ...state, app: { ...app, isLoading: action.loading, loadingProgress: action.progress } };
     case 'RESET_POSITION':
-      return { ...state, zoom: DEFAULT_SETTINGS.zoom, resetKey: state.resetKey + 1 };
+      return { ...state, app: { ...app, zoom: DEFAULT_SETTINGS.zoom, resetKey: app.resetKey + 1 } };
     default:
       return state;
   }
 }
 
-const initialState: AppState = {
+const defaultInitialState: AppState = {
   ...DEFAULT_SETTINGS,
   pixelGrid: createHeartGrid(),
   svgString: svgFromPixels(createHeartGrid()),
 };
 
-type AppContextValue = { state: AppState; dispatch: React.Dispatch<Action> };
+const initialStateWithHistory: StateWithHistory = {
+  app: defaultInitialState,
+  past: [],
+  future: [],
+};
+
+// --- localStorage persistence ---
+const STORAGE_KEY = 'sculptr-state';
+
+// Keys to persist (exclude transient UI state)
+const PERSIST_KEYS: (keyof AppState)[] = [
+  'activePanel', 'svgString', 'pixelGrid', 'textInput', 'selectedFont',
+  'objectColor', 'depth', 'smoothness', 'zoom', 'backgroundColor',
+  'material', 'metalness', 'roughness', 'opacity', 'wireframe',
+  'texture', 'textureRepeat', 'textureRotation', 'textureOffset',
+  'animation', 'animationSpeed', 'animateReverse',
+  'lightPosition', 'lightIntensity', 'ambientIntensity', 'shadow',
+  'interactive', 'cursorOrbit', 'orbitStrength', 'draggable', 'scrollZoom',
+  'resetOnIdle', 'resetDelay',
+];
+
+function saveState(state: AppState) {
+  try {
+    const toSave: Record<string, unknown> = {};
+    for (const key of PERSIST_KEYS) {
+      toSave[key] = state[key];
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch { /* quota exceeded or private browsing — silently skip */ }
+}
+
+function loadState(): Partial<AppState> | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<AppState>;
+  } catch {
+    return null;
+  }
+}
+
+type AppContextValue = {
+  state: AppState;
+  dispatch: React.Dispatch<Action>;
+  canUndo: boolean;
+  canRedo: boolean;
+};
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  return createElement(AppContext.Provider, { value: { state, dispatch } }, children);
+  const [stateWithHistory, dispatch] = useReducer(reducer, initialStateWithHistory);
+  const { app: state, past, future } = stateWithHistory;
+  const hydratedRef = useRef(false);
+
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    const saved = loadState();
+    if (saved) dispatch({ type: 'HYDRATE', state: saved });
+  }, []);
+
+  // Persist to localStorage on state changes (debounced)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const timer = setTimeout(() => saveState(state), 500);
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  // Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z (or Cmd on Mac)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== 'z') return;
+      // Don't intercept if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+      dispatch({ type: e.shiftKey ? 'REDO' : 'UNDO' });
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const value: AppContextValue = {
+    state,
+    dispatch,
+    canUndo: past.length > 0,
+    canRedo: future.length > 0,
+  };
+
+  return createElement(AppContext.Provider, { value }, children);
 }
 
 export function useAppState() {
