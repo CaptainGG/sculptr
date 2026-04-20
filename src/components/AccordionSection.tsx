@@ -4,12 +4,11 @@ import { useState, type ReactNode } from 'react';
 
 interface Props {
   title: string;
-  icon?: ReactNode;
   defaultOpen?: boolean;
   children: ReactNode;
 }
 
-export function AccordionSection({ title, icon, defaultOpen = false, children }: Props) {
+export function AccordionSection({ title, defaultOpen = false, children }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -18,10 +17,7 @@ export function AccordionSection({ title, icon, defaultOpen = false, children }:
         onClick={() => setIsOpen((v) => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-white/80 hover:text-white text-sm font-medium transition-colors"
       >
-        <span className="flex items-center gap-2">
-          {icon && <span className="text-white/50">{icon}</span>}
-          {title}
-        </span>
+        <span>{title}</span>
         <svg
           viewBox="0 0 24 24"
           fill="none"

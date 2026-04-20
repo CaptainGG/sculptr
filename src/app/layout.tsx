@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Sculptr — Turn SVGs into 3D sculptures',
   description: 'Turn any SVG into an interactive 3D sculpture with animations, materials, and lighting.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

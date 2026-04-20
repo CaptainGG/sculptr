@@ -22,6 +22,9 @@ export function UploadPanel() {
       dispatch({ type: 'SET_SVG', svg });
       setFileName(file.name);
     };
+    reader.onerror = () => {
+      setError('Failed to read the file. Please try again.');
+    };
     reader.readAsText(file);
   }, [dispatch]);
 

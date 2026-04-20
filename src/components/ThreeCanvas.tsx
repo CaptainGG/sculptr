@@ -6,7 +6,6 @@ import {
   useImperativeHandle,
   useRef,
   useCallback,
-  type RefObject,
 } from 'react';
 import { useAppState } from '@/hooks/useAppState';
 import { DEFAULT_SVG, type AnimationType, type MaterialPreset } from '@/lib/defaults';
@@ -113,7 +112,7 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
       a.href = url;
       a.download = 'sculptr-render.webm';
       a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     };
     recorder.onerror = (event) => {
       console.error('Could not record video:', event);
@@ -141,7 +140,6 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
       return;
     }
     recorder.stop();
-    dispatch({ type: 'SET_RECORDING', recording: false });
   }, [dispatch]);
 
   useImperativeHandle(ref, () => ({
@@ -217,4 +215,3 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
 ThreeCanvas.displayName = 'ThreeCanvas';
 
 export { ThreeCanvas };
-export type { RefObject };

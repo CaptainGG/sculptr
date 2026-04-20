@@ -13,8 +13,10 @@ function generateEmbedCode(state: ReturnType<typeof useAppState>['state']): stri
     ? `text="${textInput}" font="${selectedFont}"`
     : `svg={mySvg}`;
 
+  // Escape backticks and ${ in SVG content for safe template literal embedding
+  const escapedSvg = svgString.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
   const svgVar = !isText && svgString
-    ? `const mySvg = \`${svgString.substring(0, 200)}${svgString.length > 200 ? '...' : ''}\`;\n\n`
+    ? `const mySvg = \`${escapedSvg}\`;\n\n`
     : '';
 
   return `import { SVG3D } from "3dsvg";
@@ -44,6 +46,16 @@ export function EmbedModal() {
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback: select the code text for manual copy
+      const pre = document.querySelector('#embed-code-block');
+      if (pre) {
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
     });
   };
 
@@ -112,7 +124,7 @@ export function EmbedModal() {
           </div>
           <div className="rounded-lg p-3 font-mono text-xs text-white/80 overflow-auto max-h-60"
             style={{ background: 'rgba(0,0,0,0.5)' }}>
-            <pre className="whitespace-pre">{code}</pre>
+            <pre id="embed-code-block" className="whitespace-pre">{code}</pre>
           </div>
         </div>
       </div>
