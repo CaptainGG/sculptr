@@ -16,6 +16,9 @@ export function CodePanel() {
       const text = ev.target?.result as string;
       if (text) dispatch({ type: 'SET_SVG', svg: text });
     };
+    reader.onerror = () => {
+      console.error('Failed to read SVG file');
+    };
     reader.readAsText(file);
     // Reset input so same file can be re-uploaded
     if (fileInputRef.current) fileInputRef.current.value = '';
