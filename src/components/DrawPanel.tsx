@@ -6,14 +6,18 @@ import { useAppState } from '@/hooks/useAppState';
 type DrawMode = 'draw' | 'erase';
 
 export function DrawPanel() {
-  const { state, dispatch } = useAppState();
+  const { state, dispatch, canUndo, canRedo } = useAppState();
   const [drawMode, setDrawMode] = useState<DrawMode>('draw');
   const isDrawingRef = useRef(false);
+  const hasDrawnRef = useRef(false);
+  const gridRef = useRef<HTMLDivElement>(null);
 
-  const getCellFromEvent = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  const getCellFromPoint = useCallback((clientX: number, clientY: number) => {
+    const el = gridRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     const cellSize = rect.width / 24;
     const col = Math.floor(x / cellSize);
     const row = Math.floor(y / cellSize);
@@ -21,25 +25,49 @@ export function DrawPanel() {
     return null;
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    isDrawingRef.current = true;
-    const cell = getCellFromEvent(e);
+  const paintCell = useCallback((clientX: number, clientY: number) => {
+    const cell = getCellFromPoint(clientX, clientY);
     if (cell) {
       dispatch({ type: 'SET_PIXEL', row: cell.row, col: cell.col, value: drawMode === 'draw' });
+      hasDrawnRef.current = true;
     }
-  }, [getCellFromEvent, dispatch, drawMode]);
+  }, [getCellFromPoint, dispatch, drawMode]);
+
+  const commitStroke = useCallback(() => {
+    isDrawingRef.current = false;
+    if (hasDrawnRef.current) {
+      dispatch({ type: 'COMMIT_GRID_SNAPSHOT' });
+      hasDrawnRef.current = false;
+    }
+  }, [dispatch]);
+
+  // Mouse handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    isDrawingRef.current = true;
+    hasDrawnRef.current = false;
+    paintCell(e.clientX, e.clientY);
+  }, [paintCell]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDrawingRef.current) return;
-    const cell = getCellFromEvent(e);
-    if (cell) {
-      dispatch({ type: 'SET_PIXEL', row: cell.row, col: cell.col, value: drawMode === 'draw' });
-    }
-  }, [getCellFromEvent, dispatch, drawMode]);
+    paintCell(e.clientX, e.clientY);
+  }, [paintCell]);
 
-  const handleMouseUp = useCallback(() => {
-    isDrawingRef.current = false;
-  }, []);
+  // Touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault(); // prevent scrolling while drawing
+    isDrawingRef.current = true;
+    hasDrawnRef.current = false;
+    const touch = e.touches[0];
+    if (touch) paintCell(touch.clientX, touch.clientY);
+  }, [paintCell]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isDrawingRef.current) return;
+    const touch = e.touches[0];
+    if (touch) paintCell(touch.clientX, touch.clientY);
+  }, [paintCell]);
 
   const { pixelGrid } = state;
 
@@ -72,6 +100,31 @@ export function DrawPanel() {
             </svg>
             Erase
           </button>
+
+          {/* Undo/Redo */}
+          <button
+            onClick={() => dispatch({ type: 'UNDO' })}
+            disabled={!canUndo}
+            className="text-white/40 hover:text-white/70 disabled:text-white/15 disabled:cursor-not-allowed transition-colors p-1.5 rounded-lg hover:bg-white/5"
+            title="Undo (Ctrl+Z)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => dispatch({ type: 'REDO' })}
+            disabled={!canRedo}
+            className="text-white/40 hover:text-white/70 disabled:text-white/15 disabled:cursor-not-allowed transition-colors p-1.5 rounded-lg hover:bg-white/5"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/>
+            </svg>
+          </button>
+
           <button
             onClick={() => dispatch({ type: 'CLEAR_GRID' })}
             className="ml-auto text-white/40 hover:text-white/70 transition-colors p-1.5 rounded-lg hover:bg-white/5"
@@ -88,7 +141,8 @@ export function DrawPanel() {
         {/* Grid */}
         <div className="p-3 pt-1">
           <div
-            className="select-none"
+            ref={gridRef}
+            className="select-none touch-none"
             style={{
               width: 284,
               height: 284,
@@ -103,8 +157,12 @@ export function DrawPanel() {
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseUp={commitStroke}
+            onMouseLeave={commitStroke}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={commitStroke}
+            onTouchCancel={commitStroke}
           >
             {pixelGrid.flat().map((filled, i) => (
               <div
