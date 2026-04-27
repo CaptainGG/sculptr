@@ -4,13 +4,15 @@ import { createContext, useContext, useReducer, useEffect, useRef, type ReactNod
 import { DEFAULT_SETTINGS, type AppState } from '@/lib/defaults';
 import { svgFromPixels, createEmptyGrid, createHeartGrid } from '@/lib/svgFromPixels';
 
-// --- Grid history for undo/redo ---
 type GridSnapshot = { pixelGrid: boolean[][]; svgString: string };
 const MAX_HISTORY = 50;
 
 type Action =
   | { type: 'SET_ACTIVE_PANEL'; panel: AppState['activePanel'] }
   | { type: 'SET_SVG'; svg: string }
+  | { type: 'SET_MODEL'; url: string; fileName: string; format: NonNullable<AppState['modelFormat']> }
+  | { type: 'CLEAR_MODEL' }
+  | { type: 'SET_USE_ORIGINAL_MODEL_MATERIALS'; useOriginal: boolean }
   | { type: 'SET_PIXEL'; row: number; col: number; value: boolean }
   | { type: 'CLEAR_GRID' }
   | { type: 'SET_GRID'; grid: boolean[][] }
@@ -74,37 +76,65 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
   const { app } = state;
 
   switch (action.type) {
-    case 'SET_ACTIVE_PANEL':
-      return { ...state, app: { ...app, activePanel: action.panel === app.activePanel ? null : action.panel } };
+    case 'SET_ACTIVE_PANEL': {
+      const nextPanel = action.panel === app.activePanel ? null : action.panel;
+      const nextMode =
+        nextPanel === 'model' ? 'model' :
+        nextPanel === 'text' ? 'text' :
+        nextPanel === 'draw' || nextPanel === 'code' || nextPanel === 'upload' ? 'svg' :
+        app.contentMode;
+      return { ...state, app: { ...app, activePanel: nextPanel, contentMode: nextMode } };
+    }
     case 'SET_SVG':
-      return { ...state, app: { ...app, svgString: action.svg } };
+      return { ...state, app: { ...app, svgString: action.svg, contentMode: 'svg' } };
+    case 'SET_MODEL':
+      return {
+        ...state,
+        app: {
+          ...app,
+          modelUrl: action.url,
+          modelFileName: action.fileName,
+          modelFormat: action.format,
+          contentMode: 'model',
+        },
+      };
+    case 'CLEAR_MODEL':
+      return {
+        ...state,
+        app: {
+          ...app,
+          modelUrl: undefined,
+          modelFileName: undefined,
+          modelFormat: undefined,
+          contentMode: app.contentMode === 'model' ? 'svg' : app.contentMode,
+        },
+      };
+    case 'SET_USE_ORIGINAL_MODEL_MATERIALS':
+      return { ...state, app: { ...app, useOriginalModelMaterials: action.useOriginal } };
     case 'SET_PIXEL': {
       const grid = app.pixelGrid.map((r, ri) =>
         ri === action.row ? r.map((c, ci) => (ci === action.col ? action.value : c)) : r
       );
-      return { ...state, app: { ...app, pixelGrid: grid, svgString: svgFromPixels(grid) } };
+      return { ...state, app: { ...app, pixelGrid: grid, svgString: svgFromPixels(grid), contentMode: 'svg' } };
     }
-    case 'COMMIT_GRID_SNAPSHOT': {
-      // Called on mouseUp/touchEnd — commits the current grid to history
+    case 'COMMIT_GRID_SNAPSHOT':
       return { ...state, past: pushSnapshot(state.past, app), future: [] };
-    }
     case 'CLEAR_GRID': {
       const grid = createEmptyGrid();
       return {
         ...state,
         past: pushSnapshot(state.past, app),
         future: [],
-        app: { ...app, pixelGrid: grid, svgString: '' },
+        app: { ...app, pixelGrid: grid, svgString: '', contentMode: 'svg' },
       };
     }
-    case 'SET_GRID': {
+    case 'SET_GRID':
       return {
         ...state,
         past: pushSnapshot(state.past, app),
         future: [],
-        app: { ...app, pixelGrid: action.grid, svgString: svgFromPixels(action.grid) },
+        app: { ...app, pixelGrid: action.grid, svgString: svgFromPixels(action.grid), contentMode: 'svg' },
       };
-    }
     case 'UNDO': {
       if (state.past.length === 0) return state;
       const prev = state.past[state.past.length - 1];
@@ -113,7 +143,7 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
         ...state,
         past: state.past.slice(0, -1),
         future: [...state.future, currentSnapshot],
-        app: { ...app, pixelGrid: prev.pixelGrid, svgString: prev.svgString },
+        app: { ...app, pixelGrid: prev.pixelGrid, svgString: prev.svgString, contentMode: 'svg' },
       };
     }
     case 'REDO': {
@@ -124,13 +154,13 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
         ...state,
         past: [...state.past, currentSnapshot],
         future: state.future.slice(0, -1),
-        app: { ...app, pixelGrid: next.pixelGrid, svgString: next.svgString },
+        app: { ...app, pixelGrid: next.pixelGrid, svgString: next.svgString, contentMode: 'svg' },
       };
     }
     case 'HYDRATE':
       return { ...state, app: { ...app, ...action.state } };
     case 'SET_TEXT_INPUT':
-      return { ...state, app: { ...app, textInput: action.text } };
+      return { ...state, app: { ...app, textInput: action.text, contentMode: 'text' } };
     case 'SET_FONT':
       return { ...state, app: { ...app, selectedFont: action.font } };
     case 'SET_OBJECT_COLOR':
@@ -224,19 +254,17 @@ const initialStateWithHistory: StateWithHistory = {
   future: [],
 };
 
-// --- localStorage persistence ---
 const STORAGE_KEY = 'sculptr-state';
 
-// Keys to persist (exclude transient UI state)
 const PERSIST_KEYS: (keyof AppState)[] = [
-  'activePanel', 'svgString', 'pixelGrid', 'textInput', 'selectedFont',
+  'activePanel', 'contentMode', 'svgString', 'pixelGrid', 'textInput', 'selectedFont',
   'objectColor', 'depth', 'smoothness', 'zoom', 'backgroundColor',
   'material', 'metalness', 'roughness', 'opacity', 'wireframe',
   'texture', 'textureRepeat', 'textureRotation', 'textureOffset',
   'animation', 'animationSpeed', 'animateReverse',
   'lightPosition', 'lightIntensity', 'ambientIntensity', 'shadow',
   'interactive', 'cursorOrbit', 'orbitStrength', 'draggable', 'scrollZoom',
-  'resetOnIdle', 'resetDelay',
+  'resetOnIdle', 'resetDelay', 'useOriginalModelMaterials',
 ];
 
 function saveState(state: AppState) {
@@ -246,7 +274,9 @@ function saveState(state: AppState) {
       toSave[key] = state[key];
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  } catch { /* quota exceeded or private browsing — silently skip */ }
+  } catch {
+    // Ignore unavailable storage, quota limits, and private browsing errors.
+  }
 }
 
 function loadState(): Partial<AppState> | null {
@@ -265,6 +295,7 @@ type AppContextValue = {
   canUndo: boolean;
   canRedo: boolean;
 };
+
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
@@ -272,7 +303,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const { app: state, past, future } = stateWithHistory;
   const hydratedRef = useRef(false);
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -280,19 +310,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (saved) dispatch({ type: 'HYDRATE', state: saved });
   }, []);
 
-  // Persist to localStorage on state changes (debounced)
   useEffect(() => {
     if (!hydratedRef.current) return;
     const timer = setTimeout(() => saveState(state), 500);
     return () => clearTimeout(timer);
   }, [state]);
 
-  // Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z (or Cmd on Mac)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || e.key.toLowerCase() !== 'z') return;
-      // Don't intercept if user is typing in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       e.preventDefault();

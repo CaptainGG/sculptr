@@ -44,11 +44,16 @@ export const DEFAULT_SVG = STAR_SVG;
 
 export const DEFAULT_SETTINGS = {
   // Input
-  activePanel: 'draw' as 'draw' | 'text' | 'code' | 'upload' | null,
+  activePanel: 'draw' as 'draw' | 'text' | 'code' | 'upload' | 'model' | null,
+  contentMode: 'svg' as 'svg' | 'text' | 'model',
   svgString: '' as string,
   pixelGrid: Array.from({ length: 24 }, () => Array(24).fill(false)) as boolean[][],
   textInput: '',
   selectedFont: 'DM Sans',
+  modelUrl: undefined as string | undefined,
+  modelFileName: undefined as string | undefined,
+  modelFormat: undefined as 'glb' | 'gltf' | 'obj' | undefined,
+  useOriginalModelMaterials: true,
 
   // Object
   objectColor: '#e11d48',

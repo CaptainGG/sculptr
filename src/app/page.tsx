@@ -8,6 +8,7 @@ import { DrawPanel } from '@/components/DrawPanel';
 import { TextPanel } from '@/components/TextPanel';
 import { CodePanel } from '@/components/CodePanel';
 import { UploadPanel } from '@/components/UploadPanel';
+import { ModelPanel } from '@/components/ModelPanel';
 import { SettingsDrawer } from '@/components/SettingsDrawer';
 import { TopButtons } from '@/components/TopButtons';
 import { ExportBar } from '@/components/ExportBar';
@@ -21,6 +22,7 @@ function ActivePanel() {
   if (state.activePanel === 'text') return <TextPanel />;
   if (state.activePanel === 'code') return <CodePanel />;
   if (state.activePanel === 'upload') return <UploadPanel />;
+  if (state.activePanel === 'model') return <ModelPanel />;
   return null;
 }
 

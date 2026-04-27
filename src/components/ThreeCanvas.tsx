@@ -30,6 +30,14 @@ const SceneBackgroundSync = dynamic(
   }
 );
 
+const AssetCanvas = dynamic(
+  () => import('./AssetCanvas').then((m) => ({ default: m.AssetCanvas })),
+  {
+    ssr: false,
+    loading: () => <div className="w-full h-full" />,
+  }
+);
+
 export type ThreeCanvasHandle = {
   captureImage: () => void;
   startRecording: () => void;
@@ -156,12 +164,53 @@ const ThreeCanvas = forwardRef<ThreeCanvasHandle>((_, ref) => {
     animation, animationSpeed, animateReverse,
     lightPosition, lightIntensity, ambientIntensity, shadow,
     interactive, cursorOrbit, orbitStrength, draggable, scrollZoom, resetOnIdle, resetDelay,
-    resetKey, activePanel,
+    resetKey, contentMode, modelUrl, modelFormat, useOriginalModelMaterials,
   } = state;
 
   // Determine content: text mode uses text+font props, others use svg prop
-  const isTextMode = activePanel === 'text' && textInput.trim().length > 0;
+  const isTextMode = contentMode === 'text' && textInput.trim().length > 0;
   const svgContent = svgString || DEFAULT_SVG;
+
+  if (contentMode === 'model') {
+    return (
+      <div className="absolute inset-0" style={{ background: backgroundColor }}>
+        {modelUrl && modelFormat ? (
+          <AssetCanvas
+            url={modelUrl}
+            format={modelFormat}
+            backgroundColor={backgroundColor}
+            zoom={zoom}
+            objectColor={objectColor}
+            material={material as MaterialPreset}
+            metalness={metalness}
+            roughness={roughness}
+            opacity={opacity}
+            wireframe={wireframe}
+            texture={texture}
+            textureRepeat={textureRepeat}
+            textureRotation={textureRotation}
+            textureOffset={textureOffset}
+            useOriginalMaterials={useOriginalModelMaterials}
+            animation={animation as AnimationType}
+            animationSpeed={animationSpeed}
+            animateReverse={animateReverse}
+            lightPosition={lightPosition}
+            lightIntensity={lightIntensity}
+            ambientIntensity={ambientIntensity}
+            shadow={shadow}
+            interactive={interactive}
+            draggable={draggable}
+            scrollZoom={scrollZoom}
+            registerCanvas={registerCanvas}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-white/35 text-sm">
+            Drop a GLB or GLTF in the 3D Asset panel
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="absolute inset-0" style={{ background: backgroundColor }}>

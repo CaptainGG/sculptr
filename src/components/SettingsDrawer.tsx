@@ -73,6 +73,8 @@ export function SettingsDrawer() {
   const metalness = state.metalness ?? materialDefaults.metalness;
   const roughness = state.roughness ?? materialDefaults.roughness;
   const opacity = state.opacity ?? materialDefaults.opacity;
+  const isModelMode = state.contentMode === 'model';
+  const preserveModelMaterials = isModelMode && state.useOriginalModelMaterials;
 
   if (!state.settingsOpen) return null;
 
@@ -100,9 +102,11 @@ export function SettingsDrawer() {
             />
           </div>
           <Slider label="Depth" value={state.depth} min={0.1} max={5} step={0.1}
+            disabled={isModelMode}
             format={(v) => v.toFixed(1)}
             onChange={(v) => dispatch({ type: 'SET_DEPTH', depth: v })} />
           <Slider label="Smoothness" value={Math.round(state.smoothness * 100)} min={0} max={100} step={1}
+            disabled={isModelMode}
             format={(v) => `${v}%`}
             onChange={(v) => dispatch({ type: 'SET_SMOOTHNESS', smoothness: v / 100 })} />
           <Slider label="Zoom" value={state.zoom} min={1} max={20} step={0.1}
@@ -128,25 +132,37 @@ export function SettingsDrawer() {
         </AccordionSection>
 
         <AccordionSection title="Material">
+          {isModelMode && (
+            <Toggle
+              label="Original model materials"
+              value={state.useOriginalModelMaterials}
+              onChange={(v) => dispatch({ type: 'SET_USE_ORIGINAL_MODEL_MATERIALS', useOriginal: v })}
+            />
+          )}
           <select
             value={state.material}
+            disabled={preserveModelMaterials}
             onChange={(e) => dispatch({ type: 'SET_MATERIAL', material: e.target.value as MaterialPreset })}
-            className="w-full bg-black/30 text-white rounded-lg px-3 py-2 text-xs outline-none border border-white/10 focus:border-white/30 transition-colors cursor-pointer mb-3 capitalize"
+            className={`w-full bg-black/30 text-white rounded-lg px-3 py-2 text-xs outline-none border border-white/10 focus:border-white/30 transition-colors mb-3 capitalize ${preserveModelMaterials ? 'opacity-45 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {MATERIALS.map((m) => (
               <option key={m} value={m} className="capitalize">{m.charAt(0).toUpperCase() + m.slice(1)}</option>
             ))}
           </select>
           <Slider label="Metalness" value={metalness} min={0} max={1} step={0.01}
+            disabled={preserveModelMaterials}
             format={(v) => v.toFixed(2)}
             onChange={(v) => dispatch({ type: 'SET_METALNESS', metalness: v })} />
           <Slider label="Roughness" value={roughness} min={0} max={1} step={0.01}
+            disabled={preserveModelMaterials}
             format={(v) => v.toFixed(2)}
             onChange={(v) => dispatch({ type: 'SET_ROUGHNESS', roughness: v })} />
           <Slider label="Opacity" value={opacity} min={0} max={1} step={0.01}
+            disabled={preserveModelMaterials}
             format={(v) => v.toFixed(2)}
             onChange={(v) => dispatch({ type: 'SET_OPACITY', opacity: v })} />
           <Toggle label="Wireframe" value={state.wireframe}
+            disabled={preserveModelMaterials}
             onChange={(v) => dispatch({ type: 'SET_WIREFRAME', wireframe: v })} />
         </AccordionSection>
 
@@ -164,15 +180,19 @@ export function SettingsDrawer() {
           {state.texture && (
             <>
               <Slider label="Repeat" value={state.textureRepeat} min={0.1} max={10} step={0.1}
+                disabled={preserveModelMaterials}
                 format={(v) => v.toFixed(1)}
                 onChange={(v) => dispatch({ type: 'SET_TEXTURE_REPEAT', repeat: v })} />
               <Slider label="Rotation" value={state.textureRotation} min={-Math.PI} max={Math.PI} step={0.01}
+                disabled={preserveModelMaterials}
                 format={(v) => `${Math.round(v * 180 / Math.PI)} deg`}
                 onChange={(v) => dispatch({ type: 'SET_TEXTURE_ROTATION', rotation: v })} />
               <Slider label="Offset X" value={state.textureOffset[0]} min={-1} max={1} step={0.01}
+                disabled={preserveModelMaterials}
                 format={(v) => v.toFixed(2)}
                 onChange={(v) => dispatch({ type: 'SET_TEXTURE_OFFSET', offset: [v, state.textureOffset[1]] })} />
               <Slider label="Offset Y" value={state.textureOffset[1]} min={-1} max={1} step={0.01}
+                disabled={preserveModelMaterials}
                 format={(v) => v.toFixed(2)}
                 onChange={(v) => dispatch({ type: 'SET_TEXTURE_OFFSET', offset: [state.textureOffset[0], v] })} />
             </>

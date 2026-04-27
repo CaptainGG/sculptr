@@ -40,11 +40,23 @@ function UploadIcon() {
   );
 }
 
+function ModelIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path d="M12 2 3 7l9 5 9-5-9-5Z" />
+      <path d="M3 7v10l9 5 9-5V7" />
+      <path d="M12 12v10" />
+      <path d="m3 17 9-5 9 5" />
+    </svg>
+  );
+}
+
 const TOOLS = [
   { id: 'draw' as const, icon: PencilIcon, title: 'Draw' },
   { id: 'text' as const, icon: TextIcon, title: 'Text' },
   { id: 'code' as const, icon: CodeIcon, title: 'SVG Code' },
   { id: 'upload' as const, icon: UploadIcon, title: 'Upload SVG' },
+  { id: 'model' as const, icon: ModelIcon, title: '3D Asset' },
 ] as const;
 
 export function LeftToolbar() {

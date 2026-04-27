@@ -2,9 +2,9 @@
 
 ![Sculptr Demo](public/sculptr-demo.gif)
 
-**Turn any SVG into an interactive 3D sculpture.**
+**Turn SVGs, text, sketches, and imported 3D assets into interactive scenes.**
 
-Sculptr is a browser-based 3D design tool that extrudes SVG paths into fully interactive 3D objects with real-time controls for drawing, uploads, text, SVG code, materials, lighting, animations, backgrounds, textures, and exports.
+Sculptr is a browser-based 3D design tool that extrudes SVG paths into fully interactive 3D objects, and can now inspect GLB/GLTF/OBJ model assets with real-time controls for materials, textures, lighting, animations, backgrounds, and exports.
 
 ## Features
 
@@ -12,8 +12,10 @@ Sculptr is a browser-based 3D design tool that extrudes SVG paths into fully int
 - **Text mode** - type text, choose a font, and render it in 3D
 - **SVG code** - paste SVG markup directly
 - **Upload SVG** - drag and drop or browse to load an `.svg` file
+- **3D Asset mode** - import `.glb`, single-file `.gltf`, or `.obj` models for local inspection
 - **Settings** - tune object color, depth, smoothness, zoom, background color, material, texture, animation, interaction, and lighting
 - **Materials** - default, plastic, metal, glass, rubber, chrome, gold, clay, emissive, and holographic presets
+- **Model materials** - preserve original model materials or apply Sculptr color, texture, and material overrides
 - **Textures** - control image URL, repeat, rotation, and offset
 - **Animations** - float, spin, pulse, wobble, spinFloat, and swing
 - **Export** - capture a PNG image, WebM video, or automatic 3-second recording
